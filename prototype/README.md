@@ -41,6 +41,8 @@ Each dossier records sources, retrieval/effective dates and unresolved points. R
 
 ## Run and verify
 
+For cloning or ZIP download instructions on Windows, macOS or Linux, see the [root quick start](../README.md#run-locally-windows-macos-or-linux).
+
 Requires Node.js 24 or newer. From this folder:
 
 ```sh
@@ -48,7 +50,16 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite (normally http://localhost:5173).
+Open the local URL printed by Vite (normally http://localhost:5173). Stop with Ctrl+C.
+
+To build and serve the compiled application locally:
+
+```sh
+npm run build
+npx vite preview --host 127.0.0.1
+```
+
+Open http://localhost:4173 (or the address printed). Output is in `dist/`; serve over HTTP rather than opening the HTML file directly.
 
 ```sh
 npm test
