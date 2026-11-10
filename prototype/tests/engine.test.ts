@@ -1,0 +1,14 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {project,additionalSaving,requiredReturn,crossovers} from '../src/engine.ts';
+const p={age:25,retirementAge:26,ral:12000,salaryGrowth:0,tfrBase:0,contractBase:12000};
+const s={fundId:'fixture',contributionMode:'fixed' as const,contributionValue:100,annualReturn:0,assetFee:0,annualFee:0,entryFee:0,employerRate:0,employeeMinimumRate:.012,employerEligible:false};
+test('independent zero return fixture and ledger',()=>{const r=project(p,s);assert.equal(r.terminal,1200);assert.equal(r.monthly.length,13);assert.equal(r.annual.length,2);for(const m of r.monthly)assert.ok(Math.abs(m.balance-(m.employee+m.employer+m.tfr+m.gain-m.costs-m.tax))<1e-7)});
+test('eligibility threshold and TFR only',()=>{const c={...s,employerEligible:true,employerRate:.022};assert.equal(project(p,{...c,contributionValue:11.99}).totals.employer,0);assert.equal(project(p,{...c,contributionValue:12}).totals.employer,264);assert.equal(project(p,{...c,contributionMode:'tfr'}).totals.employer,0)});
+test('salary grows annually, fixed savings do not',()=>{const r=project({...p,retirementAge:27,salaryGrowth:.1},{...s,contributionMode:'percent',contributionValue:.1});assert.ok(Math.abs(r.terminal-2520)<1e-8);assert.equal(project({...p,retirementAge:27,salaryGrowth:.1},s).terminal,2400)});
+test('tax benefit is separate, deduction capped',()=>{const high={...s,contributionValue:1000};const a=project({...p,marginalTaxRate:.3},high);assert.equal(a.taxBenefit,1590);assert.equal(a.terminal,12000);assert.equal(project(p,high).taxBenefit,null)});
+test('annually assessed tax on net investment gains',()=>{const r=project(p,{...s,annualReturn:.12});assert.ok(Math.abs(r.totals.tax-r.totals.gain*.2)<1e-8);assert.equal(r.monthly[11].tax,0);assert.ok(r.monthly[12].tax>0)});
+test('equal, reachable and bounded solvers',()=>{assert.equal(additionalSaving(p,s,s).value,0);assert.equal(crossovers(project(p,s).monthly,project(p,s).monthly).status,'tied');const x=additionalSaving(p,s,{...s,contributionValue:200});assert.ok(Math.abs(x.value!-100)<.01);assert.equal(requiredReturn(p,s,{...s,contributionValue:1e8}).status,'bounded')});
+test('discontinuous employer unlock is minimum saving',()=>{const x=additionalSaving(p,{...s,contributionValue:0,employerEligible:true,employerRate:.022},{...s,contributionValue:20});assert.ok(Math.abs(x.value!-12)<.01);assert.ok(x.residual!>0)});
+test('invalid input throws and cannot yield stale projections',()=>{assert.throws(()=>project({...p,ral:NaN},s));assert.throws(()=>project(p,{...s,annualReturn:-1}));assert.throws(()=>project({...p,retirementAge:24},s))});
+test('multiple reversals ignore shared origin',()=>{const rows=[0,1,-1,1].map(balance=>({balance}));assert.deepEqual(crossovers(rows,[0,0,0,0].map(balance=>({balance}))).months,[2,3])});
